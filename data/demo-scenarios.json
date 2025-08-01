@@ -1,0 +1,21 @@
+{
+  "wallets": {
+    "whale": "0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b6",
+    "trader": "0x8ba1f109551bd432803012645hac136c22c55b4d",
+    "suspicious": "0x1234567890123456789012345678901234567890",
+    "new": "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+  },
+  "collections": {
+    "bored-ape": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+    "cryptopunks": "0xb47e3cd837ddf8e4c57f05d70ab865de6e193bbb",
+    "azuki": "0xed5af388653567af2f388e6224dc7c4b3241c544"
+  },
+  "demoQueries": [
+    "Analyze wallet 0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b6",
+    "What's the market trend for NFTs?",
+    "Is wallet 0x1234567890123456789012345678901234567890 safe?",
+    "Predict floor price for Bored Ape Yacht Club",
+    "Show me fraud alerts",
+    "Market insights for the next 7 days"
+  ]
+}

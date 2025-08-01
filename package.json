@@ -1,17 +1,19 @@
 {
   "name": "nft-intelligence-ai",
   "version": "1.0.0",
-  "description": "AI-powered NFT analytics platform with multi-platform bot integration",
+  "description": "AI-powered NFT analytics platform with multi-platform bot integration for bitsCrunch x AI Builders Hack 2025",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "setup": "node setup.js",
+    "test": "node test-startup.js",
+    "demo": "DEMO_MODE=true npm start",
     "lint": "echo \"Linting not configured yet\"",
     "format": "echo \"Formatting not configured yet\""
   },
-  "keywords": ["nft", "ai", "blockchain", "analytics", "bot", "bitscrunch", "hackathon"],
-  "author": "NFT Intelligence AI Team",
+  "keywords": ["nft", "ai", "blockchain", "analytics", "bot", "bitscrunch", "hackathon", "prediction", "fraud-detection"],
+  "author": "NFT Intelligence AI Team - bitsCrunch x AI Builders Hack 2025",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
@@ -36,5 +38,16 @@
   "bugs": {
     "url": "https://github.com/crushrrr007/nft-intelligence-ai/issues"
   },
-  "homepage": "https://github.com/crushrrr007/nft-intelligence-ai#readme"
+  "homepage": "https://github.com/crushrrr007/nft-intelligence-ai#readme",
+  "hackathon": {
+    "name": "bitsCrunch x AI Builders Hack 2025",
+    "category": "AI/LLM Tools & Agentic Systems",
+    "features": [
+      "Advanced AI Orchestration",
+      "Predictive Market Analysis", 
+      "Cross-Platform Memory",
+      "Real-time Fraud Detection",
+      "Multi-Model Predictions"
+    ]
+  }
 }
