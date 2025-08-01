@@ -1,0 +1,40 @@
+{
+  "name": "nft-intelligence-ai",
+  "version": "1.0.0",
+  "description": "AI-powered NFT analytics platform with multi-platform bot integration",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo \"Linting not configured yet\"",
+    "format": "echo \"Formatting not configured yet\""
+  },
+  "keywords": ["nft", "ai", "blockchain", "analytics", "bot", "bitscrunch", "hackathon"],
+  "author": "NFT Intelligence AI Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.0",
+    "discord.js": "^14.14.1",
+    "node-telegram-bot-api": "^0.64.0",
+    "openai": "^4.20.1",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/nft-intelligence-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/nft-intelligence-ai/issues"
+  },
+  "homepage": "https://github.com/your-username/nft-intelligence-ai#readme"
+}
