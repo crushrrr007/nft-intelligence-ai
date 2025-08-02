@@ -222,42 +222,43 @@ Please provide a detailed, helpful response about this NFT/blockchain query.`;
     }
   }
 
-  /**
-   * Synthesize bitsCrunch data with AI insights
+/**
+   * Synthesize bitsCrunch data with AI insights - UPDATED FOR SHORTER RESPONSES
    */
   async synthesizeData(data, intent, originalQuery) {
-    const prompt = `As an expert NFT analyst, synthesize these insights:
+    const prompt = `As an expert NFT analyst, provide a CONCISE analysis (max 150 words):
 
 Original Query: "${originalQuery}"
 Analysis Type: ${intent.type}
 Data: ${JSON.stringify(data, null, 2)}
 
-Provide expert analysis with:
-1. Key findings and patterns
-2. Risk assessment and opportunities
-3. Market context and implications
-4. Specific actionable recommendations
-5. Confidence levels for predictions
+Requirements:
+- Be direct and actionable
+- Use bullet points for key insights
+- Include specific numbers when available
+- Highlight risks or opportunities
+- Keep response under 150 words
+- Focus on what matters most to the user
 
-Use professional but accessible language with relevant emojis.`;
+Response:`;
 
     try {
       let synthesis;
       
       if (this.model) {
-        // Use Google Gemini
+        // Use Google Gemini with shorter response
         const result = await this.model.generateContent(prompt);
         synthesis = result.response.text();
       } else if (this.aiClient) {
-        // Use OpenAI
+        // Use OpenAI with limited tokens
         const completion = await this.aiClient.chat.completions.create({
           model: this.modelName,
           messages: [
-            { role: 'system', content: 'You are an expert NFT analyst providing clear insights.' },
+            { role: 'system', content: 'You are an expert NFT analyst. Be concise and actionable. Max 150 words.' },
             { role: 'user', content: prompt }
           ],
           temperature: 0.6,
-          max_tokens: 1500
+          max_tokens: 200 // Reduced from 1500 to 200
         });
         synthesis = completion.choices[0].message.content;
       } else {
@@ -268,7 +269,8 @@ Use professional but accessible language with relevant emojis.`;
       
     } catch (error) {
       logger.error('Error synthesizing data:', error);
-      throw new Error(`Data synthesis failed: ${error.message}`);
+      // Return shorter fallback message
+      return 'Analysis temporarily unavailable. Please try again.';
     }
   }
 

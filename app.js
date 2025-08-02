@@ -5,7 +5,7 @@ const helmet = require('helmet');
 
 // Import our core modules
 const { AIOrchestrator } = require('./ai/orchestrator');
-const { BitsCrunchAPI } = require('./api/bitscrunch');
+const BitsCrunchAPI = require('./api/bitscrunch');
 const webRoutes = require('./api/routes');
 const logger = require('./utils/logger');
 

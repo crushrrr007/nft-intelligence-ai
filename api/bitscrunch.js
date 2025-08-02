@@ -4,68 +4,87 @@ const logger = require('../utils/logger');
 class BitsCrunchAPI {
   constructor(apiKey) {
     this.apiKey = apiKey;
-    // Correct base URL from documentation
-    this.baseURL = 'https://api.unleashnfts.com/api/v1';
+    this.baseURL = 'https://api.bitscrunch.com/v2';
     
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
-        'x-api-key': this.apiKey,
+        'X-API-KEY': this.apiKey,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
       timeout: 30000
     });
 
-    // Request logging
+    // Request interceptor for logging
     this.client.interceptors.request.use(
       (config) => {
-        logger.info(`BitsCrunch API: ${config.method?.toUpperCase()} ${config.url}`);
+        logger.info(`BitsCrunch API Request: ${config.method.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
-        logger.error('API Request Error:', error.message);
+        logger.error('BitsCrunch API Request Error:', error.message);
         return Promise.reject(error);
       }
     );
 
-    // Response logging
+    // Response interceptor for logging and error handling
     this.client.interceptors.response.use(
       (response) => {
-        logger.info(`BitsCrunch Response: ${response.status}`);
+        logger.info(`BitsCrunch API Response: ${response.status} ${response.config.url}`);
         return response;
       },
       (error) => {
-        logger.error(`BitsCrunch Error: ${error.response?.status}`);
-        if (error.response?.data) {
-          logger.error('Error Details:', error.response.data);
+        if (error.response) {
+          logger.error(`BitsCrunch API Error: ${error.response.status} - ${error.response.data?.message || error.message}`);
+        } else {
+          logger.error('BitsCrunch API Network Error:', error.message);
         }
         return Promise.reject(error);
       }
     );
-
-    logger.info('BitsCrunch API client initialized');
   }
 
   /**
-   * Test API connection using market metrics endpoint (known working)
+   * Format error messages consistently
+   */
+  formatErrorMessage(error) {
+    if (error.response) {
+      return {
+        status: error.response.status,
+        message: error.response.data?.message || 'API request failed',
+        details: error.response.data
+      };
+    } else if (error.request) {
+      return {
+        status: 'NETWORK_ERROR',
+        message: 'Network request failed',
+        details: 'No response received from server'
+      };
+    } else {
+      return {
+        status: 'UNKNOWN_ERROR',
+        message: error.message || 'Unknown error occurred',
+        details: 'Request setup failed'
+      };
+    }
+  }
+
+  /**
+   * Test API connection
    */
   async testConnection() {
     try {
       logger.info('Testing BitsCrunch API connection');
-      
       const response = await this.client.get('/market/metrics', {
         params: {
-          currency: 'usd',
-          time_range: '24h',
-          include_washtrade: true,
-          metrics: ['volume', 'transactions', 'holders']
-        }
+          currency: 'usd'
+          }
       });
       
       return {
         success: true,
-        status: 'Connected successfully',
+        message: 'API connection successful',
         data: response.data,
         timestamp: new Date().toISOString()
       };
@@ -81,13 +100,12 @@ class BitsCrunchAPI {
   }
 
   /**
-   * Get wallet profile - CORRECT ENDPOINT from documentation
+   * Get wallet profile - CORRECT ENDPOINT
    */
   async analyzeWallet(walletAddress, options = {}) {
     try {
       logger.info(`Analyzing wallet: ${walletAddress}`);
       
-      // Use correct endpoint: /wallet/{address}/profile
       const response = await this.client.get(`/wallet/${walletAddress}/profile`, {
         params: {
           blockchain: options.blockchain || 1, // 1 for Ethereum
@@ -114,13 +132,12 @@ class BitsCrunchAPI {
   }
 
   /**
-   * Get wallet metrics - CORRECT ENDPOINT from documentation
+   * Get wallet metrics - CORRECT ENDPOINT
    */
   async getWalletMetrics(walletAddress, options = {}) {
     try {
       logger.info(`Getting wallet metrics: ${walletAddress}`);
       
-      // Use correct endpoint: /wallet/{address}/metrics
       const response = await this.client.get(`/wallet/${walletAddress}/metrics`, {
         params: {
           blockchain: options.blockchain || 1,
@@ -139,7 +156,7 @@ class BitsCrunchAPI {
       };
 
     } catch (error) {
-      logger.error(`Error getting wallet metrics ${walletAddress}:`, error.message);
+      logger.error(`Error getting wallet metrics for ${walletAddress}:`, error.message);
       return {
         success: false,
         error: this.formatErrorMessage(error),
@@ -150,17 +167,17 @@ class BitsCrunchAPI {
   }
 
   /**
-   * Get wallet reputation score - CORRECT ENDPOINT from documentation
+   * Get wallet risk score - CORRECT ENDPOINT
    */
   async getWalletRiskScore(walletAddress, options = {}) {
     try {
-      logger.info(`Getting reputation score for wallet: ${walletAddress}`);
+      logger.info(`Getting wallet risk score: ${walletAddress}`);
       
-      // Use correct endpoint: /wallet/{blockchain}/{address}/score/reputation
-      const blockchain = options.blockchain || 1;
+      const blockchain = options.blockchain || 'ethereum';
       const response = await this.client.get(`/wallet/${blockchain}/${walletAddress}/score/reputation`, {
         params: {
-          metrics: ['reputation_score', 'risk_level', 'activity_score']
+          include_washtrade: true,
+          time_range: options.time_range || '30d'
         }
       });
       
@@ -172,7 +189,7 @@ class BitsCrunchAPI {
       };
 
     } catch (error) {
-      logger.error(`Error getting reputation score for ${walletAddress}:`, error.message);
+      logger.error(`Error getting wallet risk score for ${walletAddress}:`, error.message);
       return {
         success: false,
         error: this.formatErrorMessage(error),
@@ -183,19 +200,19 @@ class BitsCrunchAPI {
   }
 
   /**
-   * Get NFT portfolio - CORRECT ENDPOINT from documentation
+   * Get wallet NFT portfolio - CORRECT ENDPOINT
    */
   async getWalletNFTs(walletAddress, options = {}) {
     try {
       logger.info(`Getting NFT portfolio for wallet: ${walletAddress}`);
       
-      // Use correct endpoint: /wallet/balance/nft
       const response = await this.client.get('/wallet/balance/nft', {
         params: {
+          owner: walletAddress,
           blockchain: options.blockchain || 1,
-          address: walletAddress,
+          limit: options.limit || 20,
           offset: options.offset || 0,
-          limit: options.limit || 30
+          include_metadata: true
         }
       });
       
@@ -275,6 +292,25 @@ class BitsCrunchAPI {
         timestamp: new Date().toISOString()
       };
 
+      // Check if at least one endpoint succeeded
+      const hasData = result.profile?.success || result.metrics?.success || 
+                     result.reputation?.success || result.nfts?.success;
+
+      if (!hasData) {
+        return {
+          success: false,
+          error: 'All wallet analysis endpoints failed',
+          wallet: walletAddress,
+          details: {
+            profile: profile.reason,
+            metrics: metrics.reason,
+            reputation: reputation.reason,
+            nfts: nfts.reason
+          },
+          timestamp: new Date().toISOString()
+        };
+      }
+
       return result;
 
     } catch (error) {
@@ -289,37 +325,69 @@ class BitsCrunchAPI {
   }
 
   /**
-   * Format error messages
+   * Search collections
    */
-  formatErrorMessage(error) {
-    if (error.response) {
-      const status = error.response.status;
-      const data = error.response.data;
+  async searchCollections(query, options = {}) {
+    try {
+      logger.info(`Searching collections: ${query}`);
       
-      switch (status) {
-        case 400:
-          return 'Bad request - check parameters';
-        case 401:
-          return 'Invalid API key';
-        case 403:
-          return 'Access forbidden';
-        case 404:
-          return 'Endpoint not found';
-        case 422:
-          return data?.message || 'Validation error';
-        case 429:
-          return 'Rate limit exceeded';
-        case 500:
-          return 'Server error';
-        default:
-          return data?.message || `API error: ${status}`;
-      }
-    } else if (error.request) {
-      return 'Network error';
-    } else {
-      return error.message || 'Unknown error';
+      const response = await this.client.get('/collection/search', {
+        params: {
+          query: query,
+          blockchain: options.blockchain || 1,
+          limit: options.limit || 10,
+          offset: options.offset || 0
+        }
+      });
+      
+      return {
+        success: true,
+        data: response.data,
+        query: query,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error(`Error searching collections for "${query}":`, error.message);
+      return {
+        success: false,
+        error: this.formatErrorMessage(error),
+        query: query,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get fraud alerts
+   */
+  async getFraudAlerts(options = {}) {
+    try {
+      logger.info('Getting fraud alerts');
+      
+      const response = await this.client.get('/fraud/alerts', {
+        params: {
+          time_range: options.timeframe || '24h',
+          limit: options.limit || 20,
+          severity: options.severity || 'all'
+        }
+      });
+      
+      return {
+        success: true,
+        data: response.data,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error('Error getting fraud alerts:', error.message);
+      return {
+        success: false,
+        error: this.formatErrorMessage(error),
+        timestamp: new Date().toISOString()
+      };
     }
   }
 }
 
-module.exports = { BitsCrunchAPI };
+module.exports = BitsCrunchAPI;
