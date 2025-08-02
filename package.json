@@ -1,18 +1,18 @@
 {
   "name": "nft-intelligence-ai",
   "version": "1.0.0",
-  "description": "AI-powered NFT analytics platform with multi-platform bot integration for bitsCrunch x AI Builders Hack 2025",
+  "description": "AI-powered NFT analytics platform with REAL APIs for bitsCrunch x AI Builders Hack 2025",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
     "setup": "node setup.js",
     "test": "node test-startup.js",
-    "demo": "DEMO_MODE=true npm start",
+    "real": "DEMO_MODE=false npm start",
     "lint": "echo \"Linting not configured yet\"",
     "format": "echo \"Formatting not configured yet\""
   },
-  "keywords": ["nft", "ai", "blockchain", "analytics", "bot", "bitscrunch", "hackathon", "prediction", "fraud-detection"],
+  "keywords": ["nft", "ai", "blockchain", "analytics", "bot", "bitscrunch", "hackathon", "prediction", "fraud-detection", "real-data"],
   "author": "NFT Intelligence AI Team - bitsCrunch x AI Builders Hack 2025",
   "license": "MIT",
   "dependencies": {
@@ -22,8 +22,10 @@
     "axios": "^1.6.0",
     "discord.js": "^14.14.1",
     "node-telegram-bot-api": "^0.64.0",
+    "helmet": "^7.1.0",
+    "@google/generative-ai": "^0.2.1",
     "openai": "^4.20.1",
-    "helmet": "^7.1.0"
+    "cohere-ai": "^7.7.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
@@ -43,11 +45,11 @@
     "name": "bitsCrunch x AI Builders Hack 2025",
     "category": "AI/LLM Tools & Agentic Systems",
     "features": [
-      "Advanced AI Orchestration",
-      "Predictive Market Analysis", 
+      "Real Google Gemini AI (FREE)",
+      "Real bitsCrunch NFT Data",
+      "Advanced Prediction Algorithms",
       "Cross-Platform Memory",
-      "Real-time Fraud Detection",
-      "Multi-Model Predictions"
+      "Real-time Fraud Detection"
     ]
   }
 }

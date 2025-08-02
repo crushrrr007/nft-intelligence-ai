@@ -1,266 +1,325 @@
+/**
+ * Conversation Memory System
+ * Manages conversation context and history across platforms
+ */
+
 const logger = require('../utils/logger');
 
 class ConversationMemory {
   constructor() {
-    // In-memory storage for conversation history
-    // In production, this would be replaced with Redis or a database
-    this.conversations = new Map();
-    this.maxHistoryPerUser = 20;
-    this.maxContextLength = 2000;
+    // In-memory storage for conversation data
+    // Format: { userId: { platform: { interactions: [], context: {} } } }
+    this.memory = new Map();
+    this.maxInteractionsPerUser = 50; // Limit memory usage
+    this.contextWindowSize = 10; // Number of recent interactions to consider for context
   }
 
   /**
-   * Add a new interaction to the conversation memory
+   * Add a new interaction to user's memory
    */
-  addInteraction(userId, platform, userQuery, aiResponse, intent = null) {
-    const key = this.getMemoryKey(userId, platform);
-    
-    if (!this.conversations.has(key)) {
-      this.conversations.set(key, {
-        userId,
-        platform,
-        interactions: [],
-        metadata: {
-          firstInteraction: new Date().toISOString(),
-          lastInteraction: new Date().toISOString(),
-          totalInteractions: 0,
-          preferredTopics: new Set(),
-          averageQueryLength: 0
-        }
-      });
+  addInteraction(userId, platform, userQuery, aiResponse, intent = {}) {
+    try {
+      // Initialize user memory if it doesn't exist
+      if (!this.memory.has(userId)) {
+        this.memory.set(userId, new Map());
+      }
+
+      const userMemory = this.memory.get(userId);
+
+      // Initialize platform memory if it doesn't exist
+      if (!userMemory.has(platform)) {
+        userMemory.set(platform, {
+          interactions: [],
+          context: {
+            totalInteractions: 0,
+            lastInteractionTime: null,
+            commonTopics: new Map(),
+            preferredAnalysisTypes: new Map(),
+            riskTolerance: 'unknown'
+          }
+        });
+      }
+
+      const platformMemory = userMemory.get(platform);
+
+      // Create interaction record
+      const interaction = {
+        timestamp: new Date().toISOString(),
+        userQuery,
+        aiResponse,
+        intent,
+        id: this.generateInteractionId()
+      };
+
+      // Add interaction to memory
+      platformMemory.interactions.push(interaction);
+
+      // Update context
+      this.updateContext(platformMemory, interaction);
+
+      // Trim memory if it exceeds limit
+      if (platformMemory.interactions.length > this.maxInteractionsPerUser) {
+        platformMemory.interactions = platformMemory.interactions.slice(-this.maxInteractionsPerUser);
+      }
+
+      logger.info(`Added interaction for ${userId} on ${platform}. Total: ${platformMemory.context.totalInteractions}`);
+
+    } catch (error) {
+      logger.error('Error adding interaction to memory:', error);
     }
-
-    const conversation = this.conversations.get(key);
-    const interaction = {
-      timestamp: new Date().toISOString(),
-      userQuery,
-      aiResponse,
-      intent,
-      queryLength: userQuery.length,
-      responseLength: aiResponse.length
-    };
-
-    conversation.interactions.push(interaction);
-    conversation.metadata.lastInteraction = interaction.timestamp;
-    conversation.metadata.totalInteractions++;
-
-    // Update metadata
-    if (intent && intent.type) {
-      conversation.metadata.preferredTopics.add(intent.type);
-    }
-
-    // Calculate average query length
-    const totalLength = conversation.interactions.reduce((sum, i) => sum + i.queryLength, 0);
-    conversation.metadata.averageQueryLength = totalLength / conversation.interactions.length;
-
-    // Maintain conversation history limit
-    if (conversation.interactions.length > this.maxHistoryPerUser) {
-      conversation.interactions = conversation.interactions.slice(-this.maxHistoryPerUser);
-    }
-
-    logger.info(`Added interaction for ${userId} on ${platform}. Total: ${conversation.metadata.totalInteractions}`);
   }
 
   /**
    * Get conversation context for a user
    */
-  getContext(userId, platform, limit = 5) {
-    const key = this.getMemoryKey(userId, platform);
-    const conversation = this.conversations.get(key);
+  getContext(userId, platform) {
+    try {
+      const userMemory = this.memory.get(userId);
+      if (!userMemory || !userMemory.has(platform)) {
+        return {
+          hasHistory: false,
+          totalInteractions: 0,
+          recentInteractions: [],
+          commonTopics: [],
+          preferredAnalysisTypes: [],
+          riskTolerance: 'unknown'
+        };
+      }
 
-    if (!conversation) {
+      const platformMemory = userMemory.get(platform);
+      const recentInteractions = platformMemory.interactions.slice(-this.contextWindowSize);
+
+      return {
+        hasHistory: platformMemory.interactions.length > 0,
+        totalInteractions: platformMemory.context.totalInteractions,
+        recentInteractions,
+        commonTopics: Array.from(platformMemory.context.commonTopics.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([topic]) => topic),
+        preferredAnalysisTypes: Array.from(platformMemory.context.preferredAnalysisTypes.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([type]) => type),
+        riskTolerance: platformMemory.context.riskTolerance,
+        lastInteractionTime: platformMemory.context.lastInteractionTime
+      };
+
+    } catch (error) {
+      logger.error('Error getting context from memory:', error);
       return {
         hasHistory: false,
+        totalInteractions: 0,
         recentInteractions: [],
-        metadata: null,
-        contextSummary: null
+        commonTopics: [],
+        preferredAnalysisTypes: [],
+        riskTolerance: 'unknown'
       };
     }
-
-    const recentInteractions = conversation.interactions.slice(-limit);
-    const contextSummary = this.generateContextSummary(conversation);
-
-    return {
-      hasHistory: true,
-      recentInteractions,
-      metadata: conversation.metadata,
-      contextSummary,
-      totalInteractions: conversation.metadata.totalInteractions
-    };
   }
 
   /**
    * Get conversation history for a user
    */
   getHistory(userId, platform, limit = 10) {
-    const key = this.getMemoryKey(userId, platform);
-    const conversation = this.conversations.get(key);
+    try {
+      const userMemory = this.memory.get(userId);
+      if (!userMemory || !userMemory.has(platform)) {
+        return [];
+      }
 
-    if (!conversation) {
+      const platformMemory = userMemory.get(platform);
+      return platformMemory.interactions.slice(-limit);
+
+    } catch (error) {
+      logger.error('Error getting history from memory:', error);
       return [];
     }
-
-    return conversation.interactions.slice(-limit);
   }
 
   /**
-   * Generate a summary of conversation context
-   */
-  generateContextSummary(conversation) {
-    const { interactions, metadata } = conversation;
-    
-    if (interactions.length === 0) {
-      return null;
-    }
-
-    // Analyze recent interactions for context
-    const recentInteractions = interactions.slice(-3);
-    const topics = Array.from(metadata.preferredTopics);
-    
-    const summary = {
-      userEngagement: this.calculateEngagementScore(interactions),
-      preferredTopics: topics,
-      averageQueryLength: Math.round(metadata.averageQueryLength),
-      recentFocus: this.analyzeRecentFocus(recentInteractions),
-      interactionPattern: this.analyzeInteractionPattern(interactions)
-    };
-
-    return summary;
-  }
-
-  /**
-   * Calculate user engagement score
-   */
-  calculateEngagementScore(interactions) {
-    if (interactions.length < 2) return 'new';
-    
-    const recentInteractions = interactions.slice(-5);
-    const avgQueryLength = recentInteractions.reduce((sum, i) => sum + i.queryLength, 0) / recentInteractions.length;
-    const avgResponseLength = recentInteractions.reduce((sum, i) => sum + i.responseLength, 0) / recentInteractions.length;
-    
-    if (avgQueryLength > 100 && avgResponseLength > 200) return 'high';
-    if (avgQueryLength > 50 && avgResponseLength > 100) return 'medium';
-    return 'low';
-  }
-
-  /**
-   * Analyze recent conversation focus
-   */
-  analyzeRecentFocus(recentInteractions) {
-    const intentTypes = recentInteractions
-      .filter(i => i.intent && i.intent.type)
-      .map(i => i.intent.type);
-    
-    if (intentTypes.length === 0) return 'general';
-    
-    // Find most common intent type
-    const counts = {};
-    intentTypes.forEach(type => {
-      counts[type] = (counts[type] || 0) + 1;
-    });
-    
-    return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-  }
-
-  /**
-   * Analyze interaction pattern
-   */
-  analyzeInteractionPattern(interactions) {
-    if (interactions.length < 3) return 'developing';
-    
-    const recent = interactions.slice(-3);
-    const intervals = [];
-    
-    for (let i = 1; i < recent.length; i++) {
-      const interval = new Date(recent[i].timestamp) - new Date(recent[i-1].timestamp);
-      intervals.push(interval);
-    }
-    
-    const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
-    const avgMinutes = avgInterval / (1000 * 60);
-    
-    if (avgMinutes < 5) return 'rapid';
-    if (avgMinutes < 30) return 'moderate';
-    return 'sporadic';
-  }
-
-  /**
-   * Get memory key for user-platform combination
-   */
-  getMemoryKey(userId, platform) {
-    return `${userId}:${platform}`;
-  }
-
-  /**
-   * Clear conversation memory for a user
+   * Clear memory for a user on a specific platform
    */
   clear(userId, platform) {
-    const key = this.getMemoryKey(userId, platform);
-    const deleted = this.conversations.delete(key);
-    
-    if (deleted) {
-      logger.info(`Cleared conversation memory for ${userId} on ${platform}`);
-    }
-    
-    return deleted;
-  }
-
-  /**
-   * Get conversation statistics
-   */
-  getStats() {
-    const stats = {
-      totalConversations: this.conversations.size,
-      totalInteractions: 0,
-      platforms: new Set(),
-      averageInteractionsPerUser: 0
-    };
-
-    for (const [key, conversation] of this.conversations) {
-      stats.totalInteractions += conversation.metadata.totalInteractions;
-      stats.platforms.add(conversation.platform);
-    }
-
-    if (stats.totalConversations > 0) {
-      stats.averageInteractionsPerUser = stats.totalInteractions / stats.totalConversations;
-    }
-
-    stats.platforms = Array.from(stats.platforms);
-    return stats;
-  }
-
-  /**
-   * Export conversation data (for backup/analysis)
-   */
-  exportConversation(userId, platform) {
-    const key = this.getMemoryKey(userId, platform);
-    const conversation = this.conversations.get(key);
-    
-    if (!conversation) {
-      return null;
-    }
-
-    return {
-      ...conversation,
-      metadata: {
-        ...conversation.metadata,
-        preferredTopics: Array.from(conversation.metadata.preferredTopics)
+    try {
+      const userMemory = this.memory.get(userId);
+      if (userMemory && userMemory.has(platform)) {
+        userMemory.delete(platform);
+        
+        // If no platforms left for this user, remove user entirely
+        if (userMemory.size === 0) {
+          this.memory.delete(userId);
+        }
       }
+
+      logger.info(`Cleared memory for ${userId} on ${platform}`);
+
+    } catch (error) {
+      logger.error('Error clearing memory:', error);
+    }
+  }
+
+  /**
+   * Update context based on new interaction
+   */
+  updateContext(platformMemory, interaction) {
+    const context = platformMemory.context;
+    
+    // Update basic stats
+    context.totalInteractions += 1;
+    context.lastInteractionTime = interaction.timestamp;
+
+    // Extract and count topics from user query
+    const topics = this.extractTopics(interaction.userQuery);
+    topics.forEach(topic => {
+      const count = context.commonTopics.get(topic) || 0;
+      context.commonTopics.set(topic, count + 1);
+    });
+
+    // Track preferred analysis types
+    if (interaction.intent && interaction.intent.type) {
+      const type = interaction.intent.type;
+      const count = context.preferredAnalysisTypes.get(type) || 0;
+      context.preferredAnalysisTypes.set(type, count + 1);
+    }
+
+    // Infer risk tolerance from queries
+    this.updateRiskTolerance(context, interaction.userQuery);
+  }
+
+  /**
+   * Extract topics from user query
+   */
+  extractTopics(query) {
+    const topics = [];
+    const lowerQuery = query.toLowerCase();
+
+    // NFT collection topics
+    const collections = [
+      'bored ape', 'bayc', 'cryptopunks', 'azuki', 'mutant ape',
+      'pudgy penguins', 'clone x', 'moonbirds', 'otherdeed', 'doodles'
+    ];
+    
+    collections.forEach(collection => {
+      if (lowerQuery.includes(collection)) {
+        topics.push(collection);
+      }
+    });
+
+    // Analysis type topics
+    const analysisTypes = [
+      'wallet', 'collection', 'market', 'risk', 'fraud', 'trading',
+      'investment', 'portfolio', 'trends', 'price'
+    ];
+
+    analysisTypes.forEach(type => {
+      if (lowerQuery.includes(type)) {
+        topics.push(type);
+      }
+    });
+
+    // Blockchain topics
+    const blockchainTerms = [
+      'ethereum', 'polygon', 'solana', 'bitcoin', 'defi', 'nft',
+      'token', 'smart contract', 'gas', 'opensea'
+    ];
+
+    blockchainTerms.forEach(term => {
+      if (lowerQuery.includes(term)) {
+        topics.push(term);
+      }
+    });
+
+    return topics;
+  }
+
+  /**
+   * Update risk tolerance based on query patterns
+   */
+  updateRiskTolerance(context, query) {
+    const lowerQuery = query.toLowerCase();
+
+    // Risk-averse indicators
+    const riskAverseTerms = ['safe', 'secure', 'low risk', 'conservative', 'stable'];
+    const riskSeekingTerms = ['risky', 'high return', 'volatile', 'speculative', 'gamble'];
+
+    let riskAverseScore = 0;
+    let riskSeekingScore = 0;
+
+    riskAverseTerms.forEach(term => {
+      if (lowerQuery.includes(term)) riskAverseScore++;
+    });
+
+    riskSeekingTerms.forEach(term => {
+      if (lowerQuery.includes(term)) riskSeekingScore++;
+    });
+
+    // Update risk tolerance
+    if (riskAverseScore > riskSeekingScore) {
+      context.riskTolerance = 'conservative';
+    } else if (riskSeekingScore > riskAverseScore) {
+      context.riskTolerance = 'aggressive';
+    } else if (context.riskTolerance === 'unknown') {
+      context.riskTolerance = 'moderate';
+    }
+  }
+
+  /**
+   * Generate unique interaction ID
+   */
+  generateInteractionId() {
+    return `int_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Get memory statistics
+   */
+  getMemoryStats() {
+    return {
+      totalUsers: this.memory.size,
+      totalInteractions: Array.from(this.memory.values())
+        .reduce((total, userMemory) => {
+          return total + Array.from(userMemory.values())
+            .reduce((userTotal, platformMemory) => {
+              return userTotal + platformMemory.interactions.length;
+            }, 0);
+        }, 0),
+      memoryUsage: `${this.memory.size} users tracked`
     };
   }
 
   /**
-   * Import conversation data (for migration/restore)
+   * Clean up old memory (for production use)
    */
-  importConversation(conversationData) {
-    const key = this.getMemoryKey(conversationData.userId, conversationData.platform);
-    
-    // Convert preferredTopics back to Set
-    conversationData.metadata.preferredTopics = new Set(conversationData.metadata.preferredTopics);
-    
-    this.conversations.set(key, conversationData);
-    logger.info(`Imported conversation for ${conversationData.userId} on ${conversationData.platform}`);
+  cleanup(maxAgeHours = 24) {
+    const cutoffTime = new Date(Date.now() - (maxAgeHours * 60 * 60 * 1000));
+    let cleanedCount = 0;
+
+    for (const [userId, userMemory] of this.memory.entries()) {
+      for (const [platform, platformMemory] of userMemory.entries()) {
+        const originalLength = platformMemory.interactions.length;
+        
+        platformMemory.interactions = platformMemory.interactions.filter(
+          interaction => new Date(interaction.timestamp) > cutoffTime
+        );
+
+        cleanedCount += originalLength - platformMemory.interactions.length;
+
+        // Remove platform if no interactions left
+        if (platformMemory.interactions.length === 0) {
+          userMemory.delete(platform);
+        }
+      }
+
+      // Remove user if no platforms left
+      if (userMemory.size === 0) {
+        this.memory.delete(userId);
+      }
+    }
+
+    logger.info(`Cleaned up ${cleanedCount} old interactions`);
+    return cleanedCount;
   }
 }
 
-module.exports = { ConversationMemory }; 
+module.exports = { ConversationMemory };

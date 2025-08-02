@@ -1,46 +1,94 @@
-// Simple startup test for NFT Intelligence AI
 require('dotenv').config();
+const axios = require('axios');
 
-console.log('🧪 Testing NFT Intelligence AI startup...');
+console.log('🧪 Testing NFT Intelligence AI Setup...\n');
 
 // Test environment variables
-const requiredVars = ['PORT', 'NODE_ENV'];
-const missingVars = requiredVars.filter(varName => !process.env[varName]);
+console.log('📋 Environment Check:');
+console.log(`✅ NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+console.log(`✅ PORT: ${process.env.PORT || 3000}`);
+console.log(`✅ AI_PROVIDER: ${process.env.AI_PROVIDER || 'not set'}`);
+console.log(`✅ DEMO_MODE: ${process.env.DEMO_MODE || 'not set'}`);
 
-if (missingVars.length > 0) {
-  console.log('❌ Missing required environment variables:', missingVars);
+// Check API keys
+console.log('\n🔑 API Keys Check:');
+const geminiKey = process.env.GOOGLE_GEMINI_API_KEY;
+const openaiKey = process.env.OPENAI_API_KEY;
+const bitsCrunchKey = process.env.BITSCRUNCH_API_KEY;
+
+if (geminiKey && geminiKey !== 'your_free_gemini_key_here') {
+  console.log('✅ Google Gemini API key configured');
 } else {
-  console.log('✅ Environment variables configured');
+  console.log('⚠️  Google Gemini API key not configured (get free at: https://aistudio.google.com/app/apikey)');
 }
 
-// Test module imports
-try {
-  const logger = require('./utils/logger');
-  logger.info('Logger test successful');
-  
-  const { AIOrchestrator } = require('./ai/orchestrator');
-  const { ConversationMemory } = require('./ai/memory');
-  const { MockBitsCrunchAPI } = require('./api/mock-bitscrunch');
-  const { PredictiveAIEngine } = require('./ai/prediction');
-  
-  console.log('✅ All core modules imported successfully');
-  
-  // Test mock API
-  const mockAPI = new MockBitsCrunchAPI();
-  console.log('✅ Mock API initialized for demo mode');
-  
-  // Test memory system
-  const memory = new ConversationMemory();
-  memory.addInteraction('test-user', 'system', 'test query', 'test response');
-  console.log('✅ Memory system working');
-  
-  // Test predictive engine
-  const predictor = new PredictiveAIEngine();
-  console.log('✅ Predictive AI engine initialized');
-  
-  console.log('\n🎉 All systems ready! Run "npm start" to launch the server.');
-  
-} catch (error) {
-  console.log('❌ Module import failed:', error.message);
-  console.log('Please check your Node.js version and dependencies.');
+if (openaiKey && openaiKey !== 'your_openai_api_key_here') {
+  console.log('✅ OpenAI API key configured');
+} else {
+  console.log('ℹ️  OpenAI API key not configured (optional)');
 }
+
+if (bitsCrunchKey && bitsCrunchKey !== 'your_free_bitscrunch_key_here') {
+  console.log('✅ bitsCrunch API key configured');
+} else {
+  console.log('⚠️  bitsCrunch API key not configured (get free at: https://unleashNFTs.com)');
+}
+
+// Test dependencies
+console.log('\n📦 Dependencies Check:');
+try {
+  require('express');
+  console.log('✅ Express.js installed');
+} catch (e) {
+  console.log('❌ Express.js not installed - run: npm install');
+}
+
+try {
+  require('@google/generative-ai');
+  console.log('✅ Google Generative AI installed');
+} catch (e) {
+  console.log('⚠️  Google Generative AI not installed - run: npm install @google/generative-ai');
+}
+
+try {
+  require('axios');
+  console.log('✅ Axios installed');
+} catch (e) {
+  console.log('❌ Axios not installed - run: npm install');
+}
+
+// Test file structure
+console.log('\n📁 File Structure Check:');
+const fs = require('fs');
+const requiredFiles = [
+  'app.js',
+  'package.json',
+  '.env',
+  'ai/orchestrator.js',
+  'api/bitscrunch.js',
+  'api/routes.js',
+  'utils/logger.js'
+];
+
+requiredFiles.forEach(file => {
+  if (fs.existsSync(file)) {
+    console.log(`✅ ${file} exists`);
+  } else {
+    console.log(`❌ ${file} missing`);
+  }
+});
+
+console.log('\n🎯 Recommendations:');
+
+if (!geminiKey || geminiKey === 'your_free_gemini_key_here') {
+  console.log('1. 🆓 Get FREE Google Gemini API key: https://aistudio.google.com/app/apikey');
+}
+
+if (!bitsCrunchKey || bitsCrunchKey === 'your_free_bitscrunch_key_here') {
+  console.log('2. 🆓 Get FREE bitsCrunch API key: https://unleashNFTs.com');
+}
+
+console.log('3. 🚀 Once configured, run: npm start');
+console.log('4. 🧪 Test at: http://localhost:3000/demo');
+
+console.log('\n🏆 Ready for bitsCrunch x AI Builders Hack 2025!');
