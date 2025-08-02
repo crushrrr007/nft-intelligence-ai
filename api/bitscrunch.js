@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 class BitsCrunchAPI {
   constructor(apiKey) {
     this.apiKey = apiKey;
-    // CORRECT BASE URL from your example
+    // Correct base URL from documentation
     this.baseURL = 'https://api.unleashnfts.com/api/v1';
     
     this.client = axios.create({
@@ -47,85 +47,51 @@ class BitsCrunchAPI {
     logger.info('BitsCrunch API client initialized');
   }
 
-/**
- * Test API connection using market metrics endpoint
- */
-async testConnection() {
-  try {
-    logger.info('Testing BitsCrunch API connection');
-    
-    // Use valid metrics from the API error message
-    const response = await this.client.get('/market/metrics', {
-      params: {
-        currency: 'usd',
-        time_range: '24h',
-        include_washtrade: true,
-        metrics: ['volume', 'transactions', 'holders'] // Array format with valid metrics
-      }
-    });
-    
-    return {
-      success: true,
-      status: 'Connected successfully',
-      data: response.data,
-      timestamp: new Date().toISOString()
-    };
+  /**
+   * Test API connection using market metrics endpoint (known working)
+   */
+  async testConnection() {
+    try {
+      logger.info('Testing BitsCrunch API connection');
+      
+      const response = await this.client.get('/market/metrics', {
+        params: {
+          currency: 'usd',
+          time_range: '24h',
+          include_washtrade: true,
+          metrics: ['volume', 'transactions', 'holders']
+        }
+      });
+      
+      return {
+        success: true,
+        status: 'Connected successfully',
+        data: response.data,
+        timestamp: new Date().toISOString()
+      };
 
-  } catch (error) {
-    logger.error('Error testing API connection:', error.message);
-    return {
-      success: false,
-      error: this.formatErrorMessage(error),
-      timestamp: new Date().toISOString()
-    };
+    } catch (error) {
+      logger.error('Error testing API connection:', error.message);
+      return {
+        success: false,
+        error: this.formatErrorMessage(error),
+        timestamp: new Date().toISOString()
+      };
+    }
   }
-}
-
-/**
- * Get market insights and trends
- */
-async getMarketInsights(options = {}) {
-  try {
-    logger.info('Getting market insights');
-    
-    const response = await this.client.get('/market/metrics', {
-      params: {
-        currency: options.currency || 'usd',
-        time_range: options.timeframe || '24h',
-        include_washtrade: options.includeWashTrade || true,
-        metrics: options.metrics || 'volume,transactions,unique_wallets,floor_price,market_cap' // Add required metrics
-      }
-    });
-    
-    return {
-      success: true,
-      data: response.data,
-      timestamp: new Date().toISOString()
-    };
-
-  } catch (error) {
-    logger.error('Error getting market insights:', error.message);
-    return {
-      success: false,
-      error: this.formatErrorMessage(error),
-      timestamp: new Date().toISOString()
-    };
-  }
-}
 
   /**
-   * Analyze wallet - need to find correct endpoint
+   * Get wallet profile - CORRECT ENDPOINT from documentation
    */
   async analyzeWallet(walletAddress, options = {}) {
     try {
       logger.info(`Analyzing wallet: ${walletAddress}`);
       
-      // Try wallet analysis endpoint
-      const response = await this.client.get('/wallet/analysis', {
+      // Use correct endpoint: /wallet/{address}/profile
+      const response = await this.client.get(`/wallet/${walletAddress}/profile`, {
         params: {
-          address: walletAddress,
-          currency: options.currency || 'usd',
-          time_range: options.timeframe || '30d'
+          blockchain: options.blockchain || 1, // 1 for Ethereum
+          metrics: ['is_whale', 'is_contract', 'first_transaction', 'last_transaction']
         }
       });
       
@@ -148,16 +114,88 @@ async getMarketInsights(options = {}) {
   }
 
   /**
-   * Get wallet risk score
+   * Get wallet metrics - CORRECT ENDPOINT from documentation
+   */
+  async getWalletMetrics(walletAddress, options = {}) {
+    try {
+      logger.info(`Getting wallet metrics: ${walletAddress}`);
+      
+      // Use correct endpoint: /wallet/{address}/metrics
+      const response = await this.client.get(`/wallet/${walletAddress}/metrics`, {
+        params: {
+          blockchain: options.blockchain || 1,
+          currency: options.currency || 'usd',
+          metrics: ['minted_value', 'sold_value', 'bought_value', 'current_value'],
+          time_range: options.time_range || '30d',
+          include_washtrade: true
+        }
+      });
+      
+      return {
+        success: true,
+        data: response.data,
+        wallet: walletAddress,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error(`Error getting wallet metrics ${walletAddress}:`, error.message);
+      return {
+        success: false,
+        error: this.formatErrorMessage(error),
+        wallet: walletAddress,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get wallet reputation score - CORRECT ENDPOINT from documentation
    */
   async getWalletRiskScore(walletAddress, options = {}) {
     try {
-      logger.info(`Getting risk score for wallet: ${walletAddress}`);
+      logger.info(`Getting reputation score for wallet: ${walletAddress}`);
       
-      const response = await this.client.get('/wallet/risk', {
+      // Use correct endpoint: /wallet/{blockchain}/{address}/score/reputation
+      const blockchain = options.blockchain || 1;
+      const response = await this.client.get(`/wallet/${blockchain}/${walletAddress}/score/reputation`, {
         params: {
+          metrics: ['reputation_score', 'risk_level', 'activity_score']
+        }
+      });
+      
+      return {
+        success: true,
+        data: response.data,
+        wallet: walletAddress,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error(`Error getting reputation score for ${walletAddress}:`, error.message);
+      return {
+        success: false,
+        error: this.formatErrorMessage(error),
+        wallet: walletAddress,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Get NFT portfolio - CORRECT ENDPOINT from documentation
+   */
+  async getWalletNFTs(walletAddress, options = {}) {
+    try {
+      logger.info(`Getting NFT portfolio for wallet: ${walletAddress}`);
+      
+      // Use correct endpoint: /wallet/balance/nft
+      const response = await this.client.get('/wallet/balance/nft', {
+        params: {
+          blockchain: options.blockchain || 1,
           address: walletAddress,
-          currency: options.currency || 'usd'
+          offset: options.offset || 0,
+          limit: options.limit || 30
         }
       });
       
@@ -169,7 +207,7 @@ async getMarketInsights(options = {}) {
       };
 
     } catch (error) {
-      logger.error(`Error getting risk score for ${walletAddress}:`, error.message);
+      logger.error(`Error getting NFT portfolio for ${walletAddress}:`, error.message);
       return {
         success: false,
         error: this.formatErrorMessage(error),
@@ -180,148 +218,18 @@ async getMarketInsights(options = {}) {
   }
 
   /**
-   * Analyze NFT collection
+   * Get market insights (existing working endpoint)
    */
-  async analyzeCollection(collectionAddress, options = {}) {
+  async getMarketInsights(options = {}) {
     try {
-      logger.info(`Analyzing collection: ${collectionAddress}`);
+      logger.info('Getting market insights');
       
-      const response = await this.client.get('/collection/analysis', {
+      const response = await this.client.get('/market/metrics', {
         params: {
-          address: collectionAddress,
           currency: options.currency || 'usd',
-          time_range: options.timeframe || '30d'
-        }
-      });
-      
-      return {
-        success: true,
-        data: response.data,
-        collection: collectionAddress,
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      logger.error(`Error analyzing collection ${collectionAddress}:`, error.message);
-      return {
-        success: false,
-        error: this.formatErrorMessage(error),
-        collection: collectionAddress,
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  /**
-   * Get collection health metrics
-   */
-  async getCollectionHealth(collectionAddress, options = {}) {
-    try {
-      logger.info(`Getting health metrics for collection: ${collectionAddress}`);
-      
-      const response = await this.client.get('/collection/health', {
-        params: {
-          address: collectionAddress,
-          currency: options.currency || 'usd'
-        }
-      });
-      
-      return {
-        success: true,
-        data: response.data,
-        collection: collectionAddress,
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      logger.error(`Error getting health for ${collectionAddress}:`, error.message);
-      return {
-        success: false,
-        error: this.formatErrorMessage(error),
-        collection: collectionAddress,
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  /**
-   * Get collection metrics
-   */
-  async getCollectionMetrics(collectionAddress, options = {}) {
-    try {
-      logger.info(`Getting metrics for collection: ${collectionAddress}`);
-      
-      const response = await this.client.get('/collection/metrics', {
-        params: {
-          address: collectionAddress,
-          currency: options.currency || 'usd',
-          time_range: options.timeframe || '7d'
-        }
-      });
-      
-      return {
-        success: true,
-        data: response.data,
-        collection: collectionAddress,
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      logger.error(`Error getting metrics for ${collectionAddress}:`, error.message);
-      return {
-        success: false,
-        error: this.formatErrorMessage(error),
-        collection: collectionAddress,
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  /**
-   * Search for collections
-   */
-  async searchCollections(query, options = {}) {
-    try {
-      logger.info(`Searching collections for: ${query}`);
-      
-      const response = await this.client.get('/collections/search', {
-        params: {
-          q: query,
-          limit: options.limit || 10,
-          currency: options.currency || 'usd'
-        }
-      });
-      
-      return {
-        success: true,
-        data: response.data,
-        query,
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      logger.error(`Error searching collections for ${query}:`, error.message);
-      return {
-        success: false,
-        error: this.formatErrorMessage(error),
-        query,
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  /**
-   * Get fraud alerts
-   */
-  async getFraudAlerts(options = {}) {
-    try {
-      logger.info('Getting fraud detection alerts');
-      
-      const response = await this.client.get('/fraud/alerts', {
-        params: {
           time_range: options.timeframe || '24h',
-          severity: options.severity || 'all',
-          currency: options.currency || 'usd'
+          include_washtrade: options.includeWashTrade || true,
+          metrics: options.metrics || 'volume,transactions,unique_wallets,floor_price,market_cap'
         }
       });
       
@@ -332,7 +240,7 @@ async getMarketInsights(options = {}) {
       };
 
     } catch (error) {
-      logger.error('Error getting fraud alerts:', error.message);
+      logger.error('Error getting market insights:', error.message);
       return {
         success: false,
         error: this.formatErrorMessage(error),
@@ -342,30 +250,35 @@ async getMarketInsights(options = {}) {
   }
 
   /**
-   * Get wallet transactions
+   * Comprehensive wallet analysis combining multiple endpoints
    */
-  async getWalletTransactions(walletAddress, options = {}) {
+  async getCompleteWalletAnalysis(walletAddress, options = {}) {
     try {
-      logger.info(`Getting transactions for wallet: ${walletAddress}`);
+      logger.info(`Getting complete analysis for wallet: ${walletAddress}`);
       
-      const response = await this.client.get('/wallet/transactions', {
-        params: {
-          address: walletAddress,
-          limit: options.limit || 50,
-          currency: options.currency || 'usd',
-          time_range: options.timeframe || '30d'
-        }
-      });
-      
-      return {
+      // Call multiple endpoints in parallel
+      const [profile, metrics, reputation, nfts] = await Promise.allSettled([
+        this.analyzeWallet(walletAddress, options),
+        this.getWalletMetrics(walletAddress, options),
+        this.getWalletRiskScore(walletAddress, options),
+        this.getWalletNFTs(walletAddress, options)
+      ]);
+
+      // Combine results
+      const result = {
         success: true,
-        data: response.data,
         wallet: walletAddress,
+        profile: profile.status === 'fulfilled' ? profile.value : null,
+        metrics: metrics.status === 'fulfilled' ? metrics.value : null,
+        reputation: reputation.status === 'fulfilled' ? reputation.value : null,
+        nfts: nfts.status === 'fulfilled' ? nfts.value : null,
         timestamp: new Date().toISOString()
       };
 
+      return result;
+
     } catch (error) {
-      logger.error(`Error getting transactions for ${walletAddress}:`, error.message);
+      logger.error(`Error in complete wallet analysis for ${walletAddress}:`, error.message);
       return {
         success: false,
         error: this.formatErrorMessage(error),
@@ -392,6 +305,8 @@ async getMarketInsights(options = {}) {
           return 'Access forbidden';
         case 404:
           return 'Endpoint not found';
+        case 422:
+          return data?.message || 'Validation error';
         case 429:
           return 'Rate limit exceeded';
         case 500:

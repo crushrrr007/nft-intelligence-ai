@@ -44,7 +44,7 @@ router.post('/chat', async (req, res) => {
  */
 router.post('/analyze/wallet', async (req, res) => {
   try {
-    const { walletAddress, options = {} } = req.body;
+    const { walletAddress } = req.body;
     const { bitsCrunchAPI, aiOrchestrator } = req.app.locals;
 
     if (!walletAddress) {
@@ -55,9 +55,8 @@ router.post('/analyze/wallet', async (req, res) => {
 
     logger.info(`Wallet analysis request for: ${walletAddress}`);
 
-    // Get wallet data from bitsCrunch
-    const walletData = await bitsCrunchAPI.analyzeWallet(walletAddress, options);
-    const riskData = await bitsCrunchAPI.getWalletRiskScore(walletAddress, options);
+    // Use the new comprehensive analysis method
+    const walletData = await bitsCrunchAPI.getCompleteWalletAnalysis(walletAddress);
 
     if (!walletData.success) {
       return res.status(400).json({
@@ -66,9 +65,9 @@ router.post('/analyze/wallet', async (req, res) => {
       });
     }
 
-    // Synthesize the data using AI
+    // Synthesize with AI
     const synthesis = await aiOrchestrator.synthesizeData(
-      { wallet: walletData.data, risk: riskData.data },
+      walletData,
       { type: 'wallet_analysis', confidence: 0.9 },
       `Analyze wallet ${walletAddress}`
     );
@@ -77,10 +76,7 @@ router.post('/analyze/wallet', async (req, res) => {
       success: true,
       wallet: walletAddress,
       analysis: synthesis,
-      data: {
-        wallet: walletData.data,
-        risk: riskData.data
-      },
+      data: walletData,
       timestamp: new Date().toISOString()
     });
 
