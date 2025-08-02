@@ -13,37 +13,49 @@ class AIOrchestrator {
     this.initializeAI(config);
   }
 
-  initializeAI(config) {
-    try {
-      // Google Gemini (FREE)
-      if (config.provider === 'gemini' && config.googleApiKey && 
-          config.googleApiKey !== 'your_free_gemini_key_here') {
-        
-        this.genAI = new GoogleGenerativeAI(config.googleApiKey);
-        this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
-        logger.info('✅ AI Orchestrator initialized with Google Gemini (LIVE)');
-        return;
+initializeAI(config) {
+  try {
+    // Google Gemini (FREE)
+    if (config.provider === 'gemini' && config.googleApiKey && 
+        config.googleApiKey !== 'your_free_gemini_key_here') {
+      
+      this.genAI = new GoogleGenerativeAI(config.googleApiKey);
+      
+      // Try different model names in order of preference
+      const modelNames = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+      
+      for (const modelName of modelNames) {
+        try {
+          this.model = this.genAI.getGenerativeModel({ model: modelName });
+          logger.info(`✅ AI Orchestrator initialized with Google Gemini ${modelName} (LIVE)`);
+          return;
+        } catch (error) {
+          logger.warn(`Model ${modelName} not available, trying next...`);
+        }
       }
       
-      // OpenAI (if available)
-      if (config.provider === 'openai' && config.apiKey && 
-          config.apiKey !== 'your_openai_api_key_here') {
-        
-        const OpenAI = require('openai');
-        this.aiClient = new OpenAI({ apiKey: config.apiKey });
-        this.modelName = config.model || 'gpt-3.5-turbo';
-        logger.info(`✅ AI Orchestrator initialized with OpenAI ${this.modelName} (LIVE)`);
-        return;
-      }
-      
-      // No valid API key found
-      throw new Error('No valid AI API key found. Please configure Google Gemini or OpenAI API key.');
-      
-    } catch (error) {
-      logger.error('Error initializing AI:', error);
-      throw error;
+      throw new Error('No valid Gemini model found');
     }
+    
+    // OpenAI (if available)
+    if (config.provider === 'openai' && config.apiKey && 
+        config.apiKey !== 'your_openai_api_key_here') {
+      
+      const OpenAI = require('openai');
+      this.aiClient = new OpenAI({ apiKey: config.apiKey });
+      this.modelName = config.model || 'gpt-3.5-turbo';
+      logger.info(`✅ AI Orchestrator initialized with OpenAI ${this.modelName} (LIVE)`);
+      return;
+    }
+    
+    // No valid API key found
+    throw new Error('No valid AI API key found. Please configure Google Gemini or OpenAI API key.');
+    
+  } catch (error) {
+    logger.error('Error initializing AI:', error);
+    throw error;
   }
+}
 
   /**
    * Process user query with real AI
